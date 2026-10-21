@@ -1,16 +1,16 @@
 {
   "page": {
     "title": "Integrating Golfer and Golf Club Detection Models",
-    "description": "",
-    "eyebrow": "",
-    "role": "",
+    "description": "Unifying golfer pose and golf club detection in one keypoint model to improve blurred-club recall, accelerate inference, and simplify production maintenance.",
+    "eyebrow": "Computer vision · Golf swing analysis",
+    "role": "My role: I redesigned the data pipeline and training loss, merged partially annotated datasets, and trained a unified golfer-and-club keypoint model.",
     "navigationLabel": "Project sections",
     "navigationToggle": "Toggle section navigation",
     "mainPage": {
       "label": "Return to main page",
-      "url": ""
+      "url": "https://you-ming-hu.github.io/"
     },
-    "footer": ""
+    "footer": "Integrating Golfer and Golf Club Detection Models"
   },
   "sections": [
     {
@@ -122,7 +122,24 @@
     {
       "id": "result",
       "title": "Results",
-      "paragraphs": []
+      "paragraphs": [
+        "The unified model replaced the two-model detection pipeline with a single golfer-and-club skeleton output. It combined improved club recall under heavy motion blur with faster inference and a simpler production workflow."
+      ],
+      "subsections": [
+        {
+          "title": "Detection quality",
+          "paragraphs": [
+            "Club recall improved by approximately 50% in cases where motion blur made the club barely visible. Learning body pose and club information together helped the model produce plausible club estimates when direct visual evidence was weak."
+          ]
+        },
+        {
+          "title": "Production efficiency",
+          "paragraphs": [
+            "The model retained the backbone architecture used by the legacy detectors and used a lightweight keypoint head. Inference took roughly as long as running one previous model, yielding approximately twice the overall inference speed compared with the two-model pipeline.",
+            "A single skeleton output removed the need to align separate model predictions and reconstruct the skeleton from bounding boxes. The simpler workflow saved approximately 2–3 days of conversion, deployment, and testing work per model upgrade."
+          ]
+        }
+      ]
     }
   ]
 }
