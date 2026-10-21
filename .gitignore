@@ -1,0 +1,4 @@
+.DS_Store
+materials/data/.generated/
+materials/data/catalog.json
+dist/

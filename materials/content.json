@@ -1,0 +1,128 @@
+{
+  "page": {
+    "title": "Integrating Golfer and Golf Club Detection Models",
+    "description": "",
+    "eyebrow": "",
+    "role": "",
+    "navigationLabel": "Project sections",
+    "navigationToggle": "Toggle section navigation",
+    "mainPage": {
+      "label": "Return to main page",
+      "url": ""
+    },
+    "footer": ""
+  },
+  "sections": [
+    {
+      "id": "goal",
+      "title": "Goal",
+      "paragraphs": [],
+      "subsections": [
+        {
+          "title": "Previous approach",
+          "paragraphs": [
+            "The legacy pipeline used separate bounding-box models to detect the golfer and golf club.",
+            "Extensive post-processing converted their detections into a single connected skeleton."
+          ]
+        },
+        {
+          "title": "Disadvantages",
+          "items": [
+            "Running two models increased inference time and created a complex pipeline that was difficult to maintain.",
+            "Recovering club orientation required choosing between the bounding box’s two diagonals using pose information, an error-prone process when the club was nearly vertical."
+          ]
+        },
+        {
+          "title": "Our goal",
+          "paragraphs": [
+            "Replace both detectors and their bounding-box-to-skeleton processing with one custom keypoint model that predicts the golfer and golf club as a unified skeleton."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "difficulty",
+      "title": "Challenges",
+      "paragraphs": [
+        "Golfer pose and club annotations came from different sources and did not consistently cover the same frames. Both were present in the videos, but time and cost constraints left some labels missing. The existing training setup treated missing labels as object absence, penalizing valid detections and conflicting with the dataset’s incomplete annotations."
+      ],
+      "subsections": [
+        {
+          "title": "What I needed to do",
+          "items": [
+            "Redesign the data pipeline to merge the two annotation sources while tracking which golfer and club labels are available in each frame.",
+            "Adapt the training loss to distinguish missing annotations from true absence, so unlabeled targets are not incorrectly suppressed.",
+            "Establish a training and evaluation approach suited to partial supervision, verifying reliable predictions for both golfer pose and club despite incomplete labels."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "accomplishment",
+      "title": "Contributions and Outcomes",
+      "paragraphs": [],
+      "metricGroups": [
+        {
+          "title": "Model performance",
+          "metrics": [
+            {
+              "value": "~50%",
+              "label": "Recall improvement on heavily blurred clubs"
+            },
+            {
+              "value": "~2×",
+              "label": "Overall inference speed"
+            }
+          ]
+        },
+        {
+          "title": "Engineering efficiency",
+          "metrics": [
+            {
+              "value": "2 → 1",
+              "label": "Detection models in production"
+            },
+            {
+              "value": "2–3 days",
+              "label": "Engineering time saved per model upgrade"
+            }
+          ]
+        }
+      ],
+      "items": [
+        "Club detection reliability: Jointly modeling body pose and club information improved recall by approximately 50% on cases where motion blur made the club barely visible.",
+        "Inference efficiency: Retained the shared backbone architecture and replaced the detection heads with a lightweight keypoint head. The unified model ran at roughly the speed of one previous model, approximately doubling overall inference speed.",
+        "Production maintenance: Replaced separate model outputs and their alignment logic with one skeleton output, simplifying concurrent data flow and saving approximately 2–3 days of conversion, deployment, and testing work per model upgrade.",
+        "Data and training integration: Merged the two annotation sources and trained a unified golfer-and-club keypoint model with a loss function adapted to incomplete labels."
+      ]
+    },
+    {
+      "id": "influence",
+      "title": "Lasting Impact",
+      "paragraphs": [],
+      "subsections": [
+        {
+          "title": "Research insights",
+          "items": [
+            "Training design: Demonstrated that a loss function and training structure tailored to incomplete annotations could support the intended prediction behavior.",
+            "Joint modeling: Observed benefits from learning body pose and club information together, particularly when pose context helped produce plausible club estimates under heavy motion blur.",
+            "Future research: Established a foundation for investigating how body–club relationships can improve predictions when visual evidence is weak."
+          ]
+        },
+        {
+          "title": "An extensible foundation",
+          "items": [
+            "Output compatibility: Adopted a skeleton output format aligned with the emerging direction of YOLO pose models, creating a bridge toward future model integration.",
+            "Custom joint support: Designed the training workflow to accommodate customized joints, making future additions easier to incorporate.",
+            "Long-term extensibility: Provided a unified training and output structure that future projects can extend as the company’s joint definitions and research goals evolve."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "result",
+      "title": "Results",
+      "paragraphs": []
+    }
+  ]
+}
