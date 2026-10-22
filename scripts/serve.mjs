@@ -3,14 +3,27 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { prepareData } from './prepare-data.mjs';
 
-const root = path.resolve(fileURLToPath(new URL('../', import.meta.url)));
-const args = process.argv.slice(2);
-const port = Number(args[0] ?? 8002);
-if (args.length > 1 || !/^\d+$/.test(args[0] ?? '8002') || !Number.isInteger(port) || port < 1 || port > 65535) {
-  console.error('Usage: node scripts/serve.mjs [port: 1–65535]');
+const built = process.argv.includes('--dist');
+const root = path.resolve(fileURLToPath(new URL(built ? '../dist/' : '../', import.meta.url)));
+if (built && !fs.existsSync(path.join(root, 'index.html'))) {
+  console.error('Run node scripts/build-site.mjs before previewing dist/.');
   process.exit(1);
 }
+const args = process.argv.slice(2).filter(argument => argument !== '--dist');
+const port = Number(args[0] ?? 8002);
+if (args.length > 1 || !/^\d+$/.test(args[0] ?? '8002') || !Number.isInteger(port) || port < 1 || port > 65535) {
+  console.error('Usage: node scripts/serve.mjs [--dist] [port: 1–65535]');
+  process.exit(1);
+}
+let dirty = true;
+fs.mkdirSync(path.join(root, 'materials/data'), { recursive: true });
+if (!built) fs.watch(path.join(root, 'materials/data'), { recursive: true }, (_, filename) => {
+  const file = String(filename || '');
+  if (file !== 'catalog.json' && !file.startsWith('.generated')) dirty = true;
+});
+if (!built) fs.watch(path.join(root, 'materials/content.json'), () => { dirty = true; });
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.mp4': 'video/mp4', '.jpg': 'image/jpeg', '.webp': 'image/webp' };
 http.createServer((request, response) => {
   if (!['GET', 'HEAD'].includes(request.method)) { response.writeHead(405).end(); return; }
@@ -18,6 +31,11 @@ http.createServer((request, response) => {
   try {
     const url = new URL(request.url, 'http://localhost');
     const relative = decodeURIComponent(url.pathname);
+    if (!built && relative === '/materials/data/catalog.json' && dirty) {
+      const catalog = prepareData(root);
+      dirty = false;
+      console.log(`Data refreshed: ${catalog.clips.length} videos, ${catalog.snapshots.length} snapshots.`);
+    }
     filename = path.resolve(root, `.${relative.endsWith('/') ? `${relative}index.html` : relative}`);
     if (!filename.startsWith(`${root}${path.sep}`) && filename !== path.join(root, 'index.html')) throw new Error('Invalid path');
     if (!fs.statSync(filename).isFile()) throw new Error('Not a file');
@@ -43,7 +61,7 @@ http.createServer((request, response) => {
 })
 .on('error', error => {
   console.error(error.code === 'EADDRINUSE'
-    ? `Port ${port} is in use. Try: node scripts/serve.mjs ${port + 1}`
+    ? `Port ${port} is in use. Try another port: node scripts/serve.mjs ${port + 1}`
     : `Could not start preview: ${error.message}`);
   process.exitCode = 1;
 })

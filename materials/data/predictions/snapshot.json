@@ -1,0 +1,32 @@
+{
+  "0000": {
+    "60": {
+      "golf_club_heel": "The club head extends beyond the frame."
+    }
+  },
+  "0017": {
+    "29": {
+      "golf_club_heel": "The iron is barely visible during the face-on follow-through."
+    }
+  },
+  "0022-1": {
+    "24": {
+      "golf_club_head": "The driver head and vertical shaft blend into the trees."
+    }
+  },
+  "0010": {
+    "79": {
+      "golf_club_head": "Heavy motion blur obscures the club head near impact."
+    }
+  },
+  "0007": {
+    "43": {
+      "golf_club_head": "The shaft and iron head are almost invisible."
+    }
+  },
+  "0003": {
+    "106": {
+      "golf_club_head": "Most of the shaft is occluded."
+    }
+  }
+}

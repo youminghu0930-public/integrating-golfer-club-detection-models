@@ -10,7 +10,15 @@
       "label": "Return to main page",
       "url": "https://you-ming-hu.github.io/"
     },
-    "footer": "Integrating Golfer and Golf Club Detection Models"
+    "footer": "Integrating Golfer and Golf Club Detection Models",
+    "banner": {
+      "enabled": true,
+      "video": "face-on-0026-2",
+      "label": "Unified golfer and golf club detection",
+      "loading": "Loading motion preview…",
+      "play": "Play banner",
+      "pause": "Pause banner"
+    }
   },
   "sections": [
     {
@@ -112,9 +120,9 @@
         {
           "title": "An extensible foundation",
           "items": [
-            "Output compatibility: Adopted a skeleton output format aligned with the emerging direction of YOLO pose models, creating a bridge toward future model integration.",
-            "Custom joint support: Designed the training workflow to accommodate customized joints, making future additions easier to incorporate.",
-            "Long-term extensibility: Provided a unified training and output structure that future projects can extend as the company’s joint definitions and research goals evolve."
+            "Future model integration: Adopted a skeleton output format aligned with the emerging direction of YOLO pose models and designed the training workflow to accommodate additional custom joints.",
+            "Mixed skeleton formats: Future company pose formats can coexist with existing annotations through joint mapping and missing-label handling, without standardizing every dataset.",
+            "Broader dataset reuse: Beyond our own research, the approach could enable researchers to combine existing annotations from datasets such as COCO and Human3.6M, offering a potentially low-cost path to greater training-data diversity without requiring full reannotation."
           ]
         }
       ]
@@ -122,24 +130,90 @@
     {
       "id": "result",
       "title": "Results",
-      "paragraphs": [
-        "The unified model replaced the two-model detection pipeline with a single golfer-and-club skeleton output. It combined improved club recall under heavy motion blur with faster inference and a simpler production workflow."
-      ],
-      "subsections": [
-        {
-          "title": "Detection quality",
-          "paragraphs": [
-            "Club recall improved by approximately 50% in cases where motion blur made the club barely visible. Learning body pose and club information together helped the model produce plausible club estimates when direct visual evidence was weak."
-          ]
+      "paragraphs": [],
+      "demo": {
+        "listTitle": "Swing videos",
+        "videoTitle": "Swing video",
+        "snapshots": {
+          "title": "Hard example snapshot highlights",
+          "inspectionHint": "Hover to inspect a joint or connection.",
+          "carousel": "carousel",
+          "loading": "Loading snapshot highlights…",
+          "empty": "No snapshots have been selected yet.",
+          "error": "Snapshot highlights could not be loaded. The video viewer is still available below.",
+          "imageError": "This snapshot image could not be loaded.",
+          "previous": "Previous snapshot",
+          "next": "Next snapshot",
+          "navigation": "Choose a snapshot",
+          "itemLabel": "Swing {video} · Frame {frame}",
+          "show": "Show swing {video}, frame {frame}",
+          "frame": "Frame {frame}",
+          "position": "{current} / {total} · Swing {video} · Frame {frame}",
+          "focus": "Focus: {joints}"
         },
-        {
-          "title": "Production efficiency",
-          "paragraphs": [
-            "The model retained the backbone architecture used by the legacy detectors and used a lightweight keypoint head. Inference took roughly as long as running one previous model, yielding approximately twice the overall inference speed compared with the two-model pipeline.",
-            "A single skeleton output removed the need to align separate model predictions and reconstruct the skeleton from bounding boxes. The simpler workflow saved approximately 2–3 days of conversion, deployment, and testing work per model upgrade."
-          ]
-        }
-      ]
+        "creditLabel": "Video source:",
+        "creditLink": "Original Instagram post ↗",
+        "viewLabel": "Camera view",
+        "views": {
+          "all": "All views",
+          "face-on": "Face-on",
+          "down-the-line": "Down the line"
+        },
+        "clipLabel": "Swing {id}",
+        "videoCount": "{count} videos",
+        "frame": "Frame {current} / {total}",
+        "slider": "Video frame",
+        "start": "Jump to start",
+        "previous": "Previous frame",
+        "play": "Play",
+        "stop": "Stop",
+        "next": "Next frame",
+        "end": "Jump to end",
+        "loading": "Loading swing…",
+        "loadVideo": "Tap to load video",
+        "loadingDemo": "Loading the video demo…",
+        "loadingList": "Loading video list…",
+        "ready": "Ready",
+        "error": "This swing could not be loaded. Select a video to try again.",
+        "empty": "No videos available.",
+        "keyboard": "Press Space to play or pause. Tap ← / → to step one frame; hold to repeat.",
+        "inspectionHint": "Hover to inspect a joint or connection. Click to select; Shift-click to select multiple joints or connections.",
+        "panZoomLabel": "Pan and zoom",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out",
+        "zoomLevel": "Zoom level",
+        "resetView": "Reset view",
+        "panZoomHint": "Scroll or pinch to zoom; drag to pan when zoomed in.",
+        "skeletonLabel": "{view} skeleton",
+        "featureLabel": "{view} · {feature}",
+        "connectionLabel": "{from} — {to}",
+        "jointNames": {
+          "nose": "Nose",
+          "atlas": "Atlas",
+          "top_head": "Top of head",
+          "left_eye": "Left eye",
+          "right_eye": "Right eye",
+          "left_ear": "Left ear",
+          "right_ear": "Right ear",
+          "left_shoulder": "Left shoulder",
+          "right_shoulder": "Right shoulder",
+          "left_elbow": "Left elbow",
+          "right_elbow": "Right elbow",
+          "left_wrist": "Left wrist",
+          "right_wrist": "Right wrist",
+          "left_hip": "Left hip",
+          "right_hip": "Right hip",
+          "left_knee": "Left knee",
+          "right_knee": "Right knee",
+          "left_ankle": "Left ankle",
+          "right_ankle": "Right ankle",
+          "golf_club_grip": "Club grip",
+          "golf_club_shaft_midpoint": "Shaft midpoint",
+          "golf_club_heel": "Club heel",
+          "golf_club_head": "Club head"
+        },
+        "modelLabel": "Golfer and golf club"
+      }
     }
   ]
 }

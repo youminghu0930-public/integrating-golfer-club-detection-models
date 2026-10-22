@@ -62,8 +62,20 @@ async function renderPage() {
   header.append(nav);
 
   const main = element('main');
+  const demos = [];
   const hero = element('div', undefined, 'hero');
   hero.append(element('p', page.eyebrow, 'eyebrow'), element('h1', page.title));
+  if (page.banner?.enabled !== false && page.banner?.video) {
+    const banner = element('div', undefined, 'hero-banner');
+    banner.setAttribute('role', 'group'); banner.setAttribute('aria-label', page.banner.label);
+    hero.append(banner);
+    const demoCopy = sections.find(section=>section.demo)?.demo;
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      import('./hero-banner.js').then(module=>module.mountBanner(banner,page.banner,demoCopy)).catch(error=>{
+        console.warn('Banner unavailable',error);
+      });
+    }));
+  }
   main.append(hero);
   if (page.role) main.append(element('p', page.role, 'hero-role'));
 
@@ -107,11 +119,43 @@ async function renderPage() {
       body.prepend(metricGroups);
     }
     section.append(heading, body);
+    if (content.demo) {
+      if (content.demo.snapshots) {
+        section.append(element('h3', content.demo.snapshots.title, 'result-subheading'));
+        const snapshots = element('div', undefined, 'snapshot-demo');
+        const loading = element('p', content.demo.snapshots.loading, 'demo-loading');
+        loading.setAttribute('role', 'status'); snapshots.append(loading); section.append(snapshots);
+        demos.push({ demo: snapshots, copy: content.demo, modulePath: './snapshot-viewer.js', mount: 'mountSnapshots', error: content.demo.snapshots.error });
+        section.append(element('h3', content.demo.videoTitle, 'result-subheading'));
+      }
+      const demo = element('div', undefined, 'demo');
+      const loading = element('p', content.demo.loadingDemo, 'demo-loading');
+      loading.setAttribute('role', 'status');
+      demo.append(loading);
+      section.append(demo);
+      demos.push({ demo, copy: content.demo, modulePath: './viewer.js', mount: 'mountViewer', error: content.demo.error });
+    }
     main.append(section);
   }
   document.querySelector('#app').replaceChildren(backdrop, navigationToggle, header, main, element('footer', page.footer));
   if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
-
+  // Banner gets the landing-page bandwidth. Once it leaves the viewport,
+  // warm snapshots and low-priority video concurrently, without waiting for Results.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    import('./demo-loading.js').then(({ createDemoLoader }) => {
+      const start = createDemoLoader(demos, async ({ demo, copy, modulePath, mount, error: errorText }, options) => {
+        try { const module = await import(modulePath); await module[mount](demo, copy, options); }
+        catch (error) { console.error(error); demo.replaceChildren(element('p', errorText, 'demo-loading')); }
+      });
+      if (!hero.querySelector('.hero-banner')) { start(); return; }
+      const observer = new IntersectionObserver(entries => {
+        if (entries.some(entry => !entry.isIntersecting && entry.boundingClientRect.bottom <= 0)) {
+          observer.disconnect(); start();
+        }
+      });
+      observer.observe(hero);
+    });
+  }));
 }
 
 renderPage().catch(error => {

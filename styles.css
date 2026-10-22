@@ -92,7 +92,7 @@ dd { font-size: clamp(22px, 2.5vw, 30px); letter-spacing: -.04em; margin: 0; }
 .snapshot-hint { margin: 0 0 20px; color: var(--muted); font-size: 13px; line-height: 1.7; max-width: 760px; }
 .snapshot-shell { position: relative; overflow: clip; border-radius: 10px; background: var(--viewer-surface); }
 .snapshot-wheel { position: relative; z-index: 0; isolation: isolate; user-select: none; -webkit-user-select: none; min-height: 300px; }
-.snapshot-card { position: absolute; top: 12px; left: 50%; width: min(820px, calc(100% - 104px)); border: 1px solid var(--viewer-border); border-radius: 8px; overflow: clip; background: var(--viewer-card); backface-visibility: hidden; }
+.snapshot-card { position: absolute; top: 12px; left: 50%; width: min(560px, calc(100% - 104px)); border: 1px solid var(--viewer-border); border-radius: 8px; overflow: clip; background: var(--viewer-card); backface-visibility: hidden; }
 .snapshot-card.is-current { box-shadow: 0 8px 22px #25493416; border-color: #becdb9; }
 .snapshot-card:not(.is-current) { pointer-events: none; }
 .snapshot-card-header { display: flex; justify-content: space-between; gap: 12px; padding: 13px 16px; font-size: 12px; color: var(--muted); background: var(--viewer-card); border-bottom: 1px solid var(--viewer-border); }
@@ -102,8 +102,8 @@ dd { font-size: clamp(22px, 2.5vw, 30px); letter-spacing: -.04em; margin: 0; }
 .snapshot-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; background: var(--viewer-border); }
 .snapshot-comparison, .comparison-screens { grid-template-rows: auto auto; row-gap: 0; }
 .snapshot-comparison > .comparison-panel, .comparison-screens > .comparison-panel { display: grid; grid-template-rows: subgrid; grid-row: span 2; }
-.snapshot-comparison { grid-template-rows: auto auto auto; }
-.snapshot-comparison > .comparison-panel { grid-row: span 3; position: relative; }
+.snapshot-comparison { grid-template-rows: auto auto; }
+.snapshot-comparison > .comparison-panel { grid-row: span 2; position: relative; }
 .snapshot-callout-rail { position: absolute; left: 0; right: 0; pointer-events: none; z-index: 3; }
 .snapshot-callout { position: absolute; margin: 0; padding: 9px 10px; border: 1px solid var(--model-accent-edge); border-radius: 6px; background: #f4f7f0f5; color: #253c37; font-size: 12px; line-height: 1.45; box-shadow: 0 2px 8px #203b3214; overflow-wrap: anywhere; }
 .snapshot-callout-rail.is-external { position: static; display: grid; gap: 8px; padding: 10px; background: var(--viewer-card); }
@@ -274,3 +274,11 @@ header[data-expanded=false] { width: 0; padding-inline: 0; border: 0; }
   header, .navigation-backdrop { transition: none; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } header, header nav, header[data-expanded=false] nav, main, footer { transition: none; } }
+
+/* Unified golfer-and-club results: one panel, template controls and carousel. */
+.comparison-screens, .snapshot-comparison { grid-template-columns: minmax(0, 1fr); }
+.comparison-panel[data-model=unified] { --model-accent: #63f5b4; --model-accent-edge: #34815f; }
+.comparison-panel[data-model=unified] .snapshot-callout-arrows path { stroke: #b2f4d7; }
+.comparison-screens { grid-template-rows: auto; }
+.comparison-screens > .comparison-panel { grid-row: span 1; }
+.comparison-screens .video-loading { top: 0; }
