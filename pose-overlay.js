@@ -12,8 +12,8 @@ const headEdges = [
 ];
 const usable = point => point && Number.isFinite(point[0]) && Number.isFinite(point[1]) && (point[2] === undefined || point[2] >= 0) && (point[0] !== 0 || point[1] !== 0);
 const clubEdges = [
-  ['golf_club_grip', 'golf_club_shaft_midpoint'],
-  ['golf_club_shaft_midpoint', 'golf_club_heel'],
+  ['golf_club_grip', 'golf_club_shaft'],
+  ['golf_club_shaft', 'golf_club_heel'],
   ['golf_club_heel', 'golf_club_head'],
 ];
 export const poseConnections = index => [...bodyEdges, ...headEdges[index], ...clubEdges];

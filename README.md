@@ -21,7 +21,7 @@ Open http://127.0.0.1:8002. A different port can be passed as an argument. Resta
 - `materials/data/credits.json`: source links shared by snapshots and video.
 - `materials/data/catalog.json`, `materials/data/.generated/`, and `dist/`: disposable generated files ignored by Git. Original data is never changed by preparation or deployment.
 
-The current source prediction files have 21 coordinates but omit the shaft-midpoint name from their 20-name joint list. `prediction-data.js` inserts `golf_club_shaft_midpoint` after `golf_club_grip` in memory, using the owner-confirmed order **grip → shaft midpoint → heel → head**. Already complete joint definitions pass through unchanged. Other mismatches are rejected rather than silently shifting joints.
+Prediction files explicitly name all 21 points, including `golf_club_shaft`. The club order is **grip → shaft → heel → head**. `prediction-data.js` validates that each frame matches the declared joint count, without inserting names or shifting coordinates.
 
 The displayed frame range is the shared video/prediction range. Frame timestamps are probed from the original video; source-frame indices remain unchanged. Frame controls display one-based numbers; snapshot configuration uses zero-based indices.
 

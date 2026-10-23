@@ -208,9 +208,9 @@
           "left_ankle": "Left ankle",
           "right_ankle": "Right ankle",
           "golf_club_grip": "Club grip",
-          "golf_club_shaft_midpoint": "Shaft midpoint",
           "golf_club_heel": "Club heel",
-          "golf_club_head": "Club head"
+          "golf_club_head": "Club head",
+          "golf_club_shaft": "Club shaft"
         },
         "modelLabel": "Golfer and golf club"
       }

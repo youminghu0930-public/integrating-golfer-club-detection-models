@@ -9,15 +9,15 @@ import { poseConnections } from '../pose-overlay.js';
 import { prepareData } from '../scripts/prepare-data.mjs';
 import { siteFiles } from '../scripts/site-files.mjs';
 
-const raw = { joints: ['nose','golf_club_grip','golf_club_heel','golf_club_head'], pred: [[[1,2],[10,20],[20,30],[30,40],[40,50]]] };
-test('missing shaft name is inserted without moving coordinates or mutating source', () => {
+const raw = { joints: ['nose','golf_club_grip','golf_club_shaft','golf_club_heel','golf_club_head'], pred: [[[1,2],[10,20],[20,30],[30,40],[40,50]]] };
+test('explicit shaft name preserves coordinate order without mutating source', () => {
   const original = JSON.stringify(raw), pose = normalizePrediction(raw);
-  assert.deepEqual(pose.joints.slice(-4), ['golf_club_grip','golf_club_shaft_midpoint','golf_club_heel','golf_club_head']);
+  assert.deepEqual(pose.joints.slice(-4), ['golf_club_grip','golf_club_shaft','golf_club_heel','golf_club_head']);
   assert.deepEqual(pose.pred[0][pose.joints.indexOf('golf_club_heel')], [30,40]);
   assert.equal(JSON.stringify(raw),original);
   assert.deepEqual(normalizePrediction(pose),pose);
   assert.throws(()=>normalizePrediction({...raw,pred:[[[1,2]]]}), /do not match/);
-  assert.ok(poseConnections(1).some(([a,b])=>a==='golf_club_shaft_midpoint'&&b==='golf_club_heel'));
+  assert.ok(poseConnections(1).some(([a,b])=>a==='golf_club_shaft'&&b==='golf_club_heel'));
 });
 test('compact snapshot messages and annotated messages focus on the actual club point', () => {
   const clip={id:'0027',key:'down-the-line-0027',frameCount:2};
