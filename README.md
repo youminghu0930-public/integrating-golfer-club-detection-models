@@ -74,3 +74,7 @@ The included `.github/workflows/pages.yml` tests, builds, and deploys `dist/` on
 ## Mobile verification
 
 Browser checks cover 320×568, 390×844, 430×932, 768×1024, 844×390 landscape, and 1024×768. Navigation, banner priority, six snapshots, camera filtering, playback, frame stepping, and zoom controls were checked without horizontal page overflow. Shared typography, breakpoints, carousel behavior, and zoom/pan implementation were compared with the reference project. These checks use desktop browser viewport emulation; physical iOS/Android touch gestures, mobile autoplay policies, and Safari decoding still require device verification.
+
+The banner poster and skeleton fade in independently when ready. As soon as the first video frame is decoded and its pose data is available, the video is revealed and the poster is removed in one paint, then playback starts. There is no video fade-in, poster fade-out, or delay waiting for the poster fade to finish. The poster returns if playback fails. Reduced-motion users see the static preview without fades.
+
+Banner skeleton synchronization uses presented-video-frame timestamps (`requestVideoFrameCallback`) during playback and across pauses/looping. The visible placeholder always uses frame-zero joints. The skeleton is updated in the same operation that reveals the decoded video, and pending final-frame callbacks are allowed to settle when playback pauses. Older browsers use animation-frame/current-time fallback.

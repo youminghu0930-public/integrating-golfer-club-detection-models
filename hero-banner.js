@@ -11,6 +11,7 @@ export function bannerClip(clips, key) {
   const matches=clips.filter(clip=>clip.key===key || clip.id===key);
   return matches.length===1?matches[0]:null;
 }
+const reveal = node => requestAnimationFrame(() => requestAnimationFrame(() => { node.dataset.ready = 'true'; }));
 const make=(tag,className)=>{const node=document.createElement(tag); if(className)node.className=className; return node;};
 async function read(url) {
   const response=await fetch(url);
@@ -29,9 +30,16 @@ export async function mountBanner(root, settings, copy) {
   video.loop=true; video.preload='auto'; video.poster=asset?.poster??clip.thumbnail;
   video.setAttribute('aria-hidden','true'); video.tabIndex=-1;
   const poster=make('img','banner-poster');
-  poster.src=video.poster; poster.alt=''; poster.fetchPriority='high'; poster.decoding='async';
+  poster.alt=''; poster.fetchPriority='high'; poster.decoding='async';
+  const posterReady = async () => {
+    try { await poster.decode(); reveal(poster); }
+    catch { /* A failed poster stays transparent while video can still load. */ }
+  };
+  poster.addEventListener('load', posterReady, { once: true });
+  poster.src=video.poster;
   viewport.append(video,poster);
   const overlay=createPoseOverlay(viewport,1,copy,new Set(),()=>{},{interactive:false});
+  const skeleton = viewport.querySelector('.pose-overlay');
   const fitOverlay=()=>{
     const contain=Math.min(viewport.clientWidth/clip.width,viewport.clientHeight/clip.height);
     const cover=Math.max(viewport.clientWidth/clip.width,viewport.clientHeight/clip.height);
@@ -41,10 +49,15 @@ export async function mountBanner(root, settings, copy) {
   const badge=make('p','banner-badge'); badge.textContent=settings.label;
   root.replaceChildren(viewport,badge);
   if(asset?.previewPose) {
-    overlay.setPose(asset.previewPose,clip.width,clip.height); fitOverlay(); overlay.render(0);
+    overlay.setPose(asset.previewPose,clip.width,clip.height); fitOverlay(); overlay.render(0); reveal(skeleton);
   }
+  let presentedTime=0;
   let callback, visible=false, loaded=false, wanted=!matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const draw=time=>overlay.render(loaded?bannerFrameAt(clip.times,time):0);
+  const draw=time=>{
+    // The placeholder is always source frame zero, even after a playback failure.
+    const frame=loaded&&poster.hidden?bannerFrameAt(clip.times,time):0;
+    overlay.render(frame); viewport.dataset.frame=String(frame);
+  };
   const cancel=()=>{
     if(callback!==undefined) {
       if(video.requestVideoFrameCallback) video.cancelVideoFrameCallback(callback);
@@ -54,23 +67,45 @@ export async function mountBanner(root, settings, copy) {
   };
   const tick=(now,metadata)=>{
     callback=undefined;
-    poster.hidden=true;
-    draw(metadata?.mediaTime??video.currentTime);
+    presentedTime=metadata?.mediaTime??video.currentTime;
+    draw(presentedTime);
     if(!video.paused) schedule();
   };
   const schedule=()=>{
     cancel();
     callback=video.requestVideoFrameCallback?video.requestVideoFrameCallback(tick):requestAnimationFrame(tick);
   };
+  let playPending;
+  const restorePoster=()=>{
+    video.dataset.ready='false'; poster.hidden=false;
+    draw(0);
+  };
   const sync=()=>{
-    if(loaded&&visible&&!document.hidden&&wanted) video.play().catch(()=>{});
-    else video.pause();
+    if(loaded&&video.readyState>=2&&visible&&!document.hidden&&wanted) {
+      if (playPending || !video.paused) return;
+      // A decoded video frame replaces the placeholder in one paint, without blending.
+      poster.hidden=true; draw(presentedTime); video.dataset.ready='true';
+      playPending=video.play().catch(()=>{
+        if (video.paused) restorePoster();
+      }).finally(()=>{playPending=undefined;});
+    } else video.pause();
   };
   video.addEventListener('play',schedule);
-  video.addEventListener('pause',cancel);
-  video.addEventListener('seeked',()=>{if(loaded)draw(video.currentTime);});
-  video.addEventListener('loadeddata',()=>{if(loaded)draw(video.currentTime);});
-  video.addEventListener('error',()=>{cancel(); poster.hidden=false; draw(0);});
+  // Let an already queued presentation callback settle the final paused frame.
+  // tick stops scheduling once paused, without dropping that frame's skeleton.
+  video.addEventListener('seeked',()=>{
+    if (!loaded) return;
+    if (video.requestVideoFrameCallback) schedule();
+    else { presentedTime=video.currentTime; draw(presentedTime); }
+  });
+  video.addEventListener('loadeddata',()=>{
+    presentedTime=video.currentTime;
+    if(loaded)draw(presentedTime);
+    sync();
+  });
+  video.addEventListener('error',()=>{
+    cancel(); restorePoster();
+  });
   document.addEventListener('visibilitychange',sync);
   const observer=new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;sync();}); observer.observe(root);
   // Do not download video/poses when opening directly at a lower section.
@@ -87,5 +122,5 @@ export async function mountBanner(root, settings, copy) {
   video.src=asset?.video??clip.video; video.load();
   const pose=normalizePrediction(await poseReady);
   overlay.setPose(pose,clip.width,clip.height);fitOverlay(); loaded=true;
-  draw(0);sync();
+  draw(0);reveal(skeleton);sync();
 }

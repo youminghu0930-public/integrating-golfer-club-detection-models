@@ -282,3 +282,14 @@ header[data-expanded=false] { width: 0; padding-inline: 0; border: 0; }
 .comparison-screens { grid-template-rows: auto; }
 .comparison-screens > .comparison-panel { grid-row: span 1; }
 .comparison-screens .video-loading { top: 0; }
+
+/* Fade the placeholder and skeleton; reveal decoded video without a crossfade. */
+.banner-video { opacity: 0; transition: none; }
+.banner-poster, .hero-banner .pose-overlay {
+  opacity: 0;
+  transition: opacity 450ms ease;
+}
+.banner-video[data-ready=true], .banner-poster[data-ready=true], .hero-banner .pose-overlay[data-ready=true] { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .banner-video, .banner-poster, .hero-banner .pose-overlay { transition: none; }
+}
