@@ -26,7 +26,7 @@
       "title": "Abstract",
       "snapshots": true,
       "paragraphs": [
-        "To replace a fragile two-model pipeline with direct golfer-and-club keypoint prediction, I needed to train on datasets with incomplete annotations. I merged the data sources and revised the loss so missing labels did not suppress valid detections. Club recall improved by approximately 50% on heavily blurred cases, supporting annotation-aware training without full relabeling."
+        "To replace a fragile two-model pipeline, I revised data preparation and the training loss to learn a unified golfer-and-club keypoint model from incomplete annotations. Combining two models into one approximately doubled overall inference speed and improved club recall by around 50% on heavily blurred cases, demonstrating the value of annotation-aware training without full relabeling."
       ],
       "metricGroups": [
         {
