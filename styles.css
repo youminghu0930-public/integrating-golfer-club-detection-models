@@ -293,3 +293,10 @@ header[data-expanded=false] { width: 0; padding-inline: 0; border: 0; }
 @media (prefers-reduced-motion: reduce) {
   .banner-video, .banner-poster, .hero-banner .pose-overlay { transition: none; }
 }
+
+.section-note { color: var(--muted); font-size: 13px; line-height: 1.7; margin-top: 24px; }
+.scan-list { margin: 17px 0 0; padding-left: 22px; }
+.scan-list li { margin-bottom: 18px; }
+.scan-list strong { font-weight: 600; }
+
+.metrics > div:only-child { grid-column: 1 / -1; }

@@ -35,7 +35,7 @@ test('single-source catalog packages only matched clips and normalizes compact s
     write('materials/data/vidoes/face-on/0027.MP4','video');
     write('materials/data/vidoes/face-on/unmatched.MP4','video');
     write('materials/data/predictions/face-on/0027.json',JSON.stringify(raw));
-    write('materials/data/predictions/snapshot.json',JSON.stringify({'0027':{0:{golf_club_heel:'Hard example'},9:['nose']}}));
+    write('materials/data/snapshot.json',JSON.stringify({'0027':{0:{golf_club_heel:'Hard example'},9:['nose']}}));
     const options={probe:()=>({times:[0,.033],width:100,height:200}),preview:(_,p)=>fs.writeFileSync(p,'image'),warn:()=>{}};
     const c=prepareData(root,options);
     assert.equal(c.clips.length,1);assert.equal(c.clips[0].frameCount,1);
@@ -44,9 +44,35 @@ test('single-source catalog packages only matched clips and normalizes compact s
     assert.deepEqual(c.snapshots[0].prediction.pred[0][3],[30,40]);
     const files=siteFiles(root,c);
     assert.ok(files.has(c.clips[0].pose));
-    assert.ok(files.has('materials/data/predictions/snapshot.json'));
+    assert.ok(files.has('materials/data/snapshot.json'));
     assert.ok(!files.has('materials/data/vidoes/face-on/unmatched.MP4'));
     fs.unlinkSync(path.join(root,c.clips[0].pose));
     assert.equal(prepareData(root,options).clips.length,0);
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
+
+test('snapshot images are regenerated when missing, reused when fresh, and refreshed after source changes', () => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'unified-static-snapshots-'));
+  const write=(name,value)=>{const target=path.join(root,name);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,value);};
+  let extracted=0;
+  const options={probe:()=>({times:[0],width:100,height:200}),preview:(_,target,frame)=>{if(frame!==null)extracted++;fs.writeFileSync(target,'image');},warn:()=>{}};
+  try {
+    write('materials/data/vidoes/face-on/clip.MP4','video');
+    write('materials/data/predictions/face-on/clip.json',JSON.stringify(raw));
+    write('materials/data/snapshot.json',JSON.stringify({clip:{0:{golf_club_heel:'Example'}}}));
+    const first=prepareData(root,options);
+    assert.equal(first.snapshots[0].image,'materials/data/snapshots/face-on/clip/0.jpg');
+    assert.equal(extracted,1);
+    prepareData(root,options);assert.equal(extracted,1);
+    fs.unlinkSync(path.join(root,first.snapshots[0].image));
+    prepareData(root,options);assert.equal(extracted,2);
+    write('materials/data/vidoes/face-on/clip.MP4','changed video');
+    prepareData(root,options);assert.equal(extracted,3);
+    const fast=JSON.parse(fs.readFileSync(path.join(root,'materials/data/snapshot-catalog.json')));
+    assert.equal(fast.snapshots.length,1);
+    assert.equal(fast.snapshots[0].video,undefined);
+    assert.equal(fast.snapshots[0].times,undefined);
+    assert.deepEqual(fast.snapshots[0].prediction.pred[0][3],[30,40]);
+    assert.ok(siteFiles(root,first).has('materials/data/snapshot-catalog.json'));
   } finally {fs.rmSync(root,{recursive:true,force:true});}
 });

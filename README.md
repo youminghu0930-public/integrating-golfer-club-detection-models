@@ -1,65 +1,57 @@
 # Integrating Golfer and Golf Club Detection Models
 
-A static GitHub Pages showcase using the layout and interaction patterns from `../improving-golf-swing-pose-estimation`. Results contain a single-view snapshot carousel and video viewer with body and club overlays.
+A static technical case study centered on revising the data and training pipeline for incomplete annotations. The six sections are Abstract, Introduction, Methods, Results, Discussion, and Conclusion. All page copy and viewer labels live in `materials/content.json`; section titles also drive the navigation. The reported primary outcome is approximately 50% improved club recall on heavily blurred cases.
 
 ## Local preview
 
-Requires Node.js and FFmpeg (including ffprobe). No npm installation is required.
+Requires Node.js and FFmpeg (including ffprobe). No npm installation is needed.
 
 ```sh
 node scripts/serve.mjs
 ```
 
-Open http://127.0.0.1:8002. A different port can be passed as an argument. Restart an older running server after updating the server script. The server regenerates the catalog on the first catalog request and after source data or content changes, and supports byte ranges for video seeking.
+Open http://127.0.0.1:8002. Pass another port if needed. Stop with Control+C. Restart an old server process after updating the scripts.
 
-## Content and data
+On startup, preparation creates missing or stale snapshot images and metadata. On each page reload, the next catalog request rechecks source files and regenerates missing/stale images. Unchanged images and video metadata are reused. Changes to snapshot configuration, predictions, videos, or content also invalidate the local catalog. JPEG and PNG MIME types and MP4 byte ranges are supported.
 
-- `materials/content.json`: all page text, viewer labels, and banner settings. `page.banner.video` selects a unique clip ID or a view-specific key, e.g. `face-on-0026-2`.
-- `materials/data/vidoes/<view>/<id>.MP4`: original videos. The existing `vidoes` spelling is preserved.
-- `materials/data/predictions/<view>/<id>.json`: predictions with `joints` and frame-indexed `pred` arrays. Only clips with matching predictions appear.
-- `materials/data/predictions/snapshot.json`: selected frames, highlighted joints, and message boxes.
-- `materials/data/credits.json`: source links shared by snapshots and video.
-- `materials/data/catalog.json`, `materials/data/.generated/`, and `dist/`: disposable generated files ignored by Git. Original data is never changed by preparation or deployment.
+## Editable data
 
-Prediction files explicitly name all 21 points, including `golf_club_shaft`. The club order is **grip → shaft → heel → head**. `prediction-data.js` validates that each frame matches the declared joint count, without inserting names or shifting coordinates.
+- `materials/content.json`: narrative, metrics, banner selection, and shared `demo` labels. Set `page.banner.video` to a unique clip key, e.g. `face-on-0018`.
+- `materials/data/snapshot.json`: canonical snapshot selections, highlights, and messages.
+- `materials/data/snapshots/<view>/<video>/<frame>.jpg`: extracted, full-resolution snapshot images. Existing `.jpeg`, `.png`, and `.webp` alternatives are supported. Missing images default to `.jpg`. Keep images you want to retain; the build never deletes this folder.
+- `materials/data/predictions/<view>/<video>.json`: original frame-indexed keypoint predictions.
+- `materials/data/vidoes/<view>/<video>.MP4`: original videos; the existing `vidoes` spelling is retained.
+- `materials/data/credits.json`: source links.
 
-The displayed frame range is the shared video/prediction range. Frame timestamps are probed from the original video; source-frame indices remain unchanged. Frame controls display one-based numbers; snapshot configuration uses zero-based indices.
-
-### Snapshot selection
-
-The compact form currently in your data is supported:
+Snapshot indices are **zero-based**; displayed frame numbers are one-based. For example:
 
 ```json
 {
-  "0027": {
-    "130": { "golf_club_heel": "Hard example" }
-  }
-}
-```
-
-For a title, multiple joints, and shared message, use:
-
-```json
-{
-  "down-the-line-0027": {
-    "130": {
-      "title": "Club detection under motion blur",
-      "joints": ["golf_club_heel", "golf_club_head"],
-      "message_box": "Hard example"
+  "0022-1": {
+    "24": {
+      "golf_club_head": "The driver head and vertical shaft blend into the trees."
     }
   }
 }
 ```
 
-A `joints` object mapping each joint to its own message is also supported. Repeated messages become one box pointing to all related joints. Use view-specific keys if IDs occur in multiple views. Invalid or removed samples are skipped.
+This uses `snapshots/face-on/0022-1/24.jpg`. A view-specific key such as `face-on-0022-1` resolves ambiguous video IDs. An annotated form with `title`, `joints`, and `message_box` is also supported. Frames must exist in both the video and predictions; invalid selections are skipped with a warning.
 
-Snapshots use the template spotlight shading, selected-joint rings, automatic framing that centers the human and fits the full body-and-club skeleton with padding, carousel transitions, and bounded zoom/pan. Snapshot cards are capped at 560px wide. Interaction uses the template’s unchanged `linked-view.js`: pointer-anchored zoom from 1× to 6×, bounded panning on both axes while zoomed, and centered framing at 1×. Automatic human-and-club fitting supplies the initial view. `SNAPSHOT_ZOOM_MULTIPLIER` in `snapshot-framing.js` scales the calculated fit (currently `0.8`, or 20% less zoom); the template’s 1× minimum still applies. Message placement includes body and club geometry when scoring clear positions, prefers upper space, avoids other boxes, and falls back to notes below the image on narrow views. Arrows retain their actual joint endpoints and clip at the viewport. Only your configured snapshot is shown; add entries to populate the carousel.
+The 21-point prediction format explicitly includes `golf_club_shaft`. Names are authoritative; coordinates are not shifted or supplemented. The club is connected as grip → shaft → heel → head.
 
-### Loading order
+## Static snapshots and loading order
 
-The lightweight banner and first-frame skeleton get initial priority. Once the hero scrolls offscreen, snapshots and low-priority selected-video metadata load concurrently. Full buffering is promoted after snapshot preparation settles. Only the selected video and predictions are loaded, with thumbnails lazy-loaded. The banner pauses offscreen and respects reduced motion.
+Snapshot preparation happens locally or during the deployment build. The browser loads a small `materials/data/snapshot-catalog.json` containing selected-frame joints, messages, and image paths; it never creates a video decoder, seeks a video, or fetches full prediction sequences for snapshots. Image URLs carry content hashes so updated images do not reuse stale browser caches.
 
-## Tests and deployment
+The banner and the Abstract’s first snapshot start on landing. Remaining snapshots wait until the hero leaves the viewport. The Results player then warms its selected-video metadata concurrently and promotes full buffering after snapshot readiness. Only the selected video is loaded. Direct section links are restored after snapshot layout settles, provided the reader has not interacted.
+
+Snapshots retain spotlight shading, selected-joint rings, message-box placement, carousel navigation, and the template’s zoom/pan interaction. Cards are capped at 560px. `SNAPSHOT_ZOOM_MULTIPLIER` in `snapshot-framing.js` scales the initial human-and-club fit (currently `0.8`), respecting a 1× minimum. The template interaction uses pointer-centered zoom from 1× to 6× and bounded panning.
+
+The banner uses regular centered cover alignment. Its first-frame placeholder and skeleton fade in independently; decoded video replaces the placeholder in one paint without a crossfade. Skeletons track presented-frame timestamps during playback and use frame-zero joints whenever the placeholder is shown.
+
+## Generated files and deployment
+
+`catalog.json`, `snapshot-catalog.json`, `materials/data/.generated/`, and `dist/` are ignored generated output. Original videos and predictions are unchanged. The snapshot images folder is not ignored; it can be committed, and missing images are rebuilt from committed videos.
 
 ```sh
 node --test tests/*.test.mjs
@@ -67,14 +59,6 @@ node scripts/build-site.mjs
 node scripts/serve.mjs --dist 8003
 ```
 
-The build generates previews and a fresh catalog from committed source data, packages only referenced files, and creates smaller H.264 delivery videos when frame count, resolution, and every frame timestamp are preserved. Otherwise it uses a lossless fast-start copy. Source videos and predictions are unchanged. `scripts/media-options.json` controls image quality and video compression. Validated delivery encodings are cached locally.
+The build includes only referenced images, prediction files, catalog data, and delivery videos. H.264 compression is used only when it preserves resolution, frame count, and every frame timestamp and produces a smaller file; otherwise delivery uses a lossless fast-start copy. Cached encodings are reused.
 
-The included `.github/workflows/pages.yml` tests, builds, and deploys `dist/` on pushes to `master` or `main`. In **Settings → Pages**, change **Source to GitHub Actions** for this data-driven build. Commit the original videos, predictions, snapshot configuration, and credits; ignored generated files are rebuilt by the workflow. Branch-root publication by itself does not generate the required catalog and previews.
-
-## Mobile verification
-
-Browser checks cover 320×568, 390×844, 430×932, 768×1024, 844×390 landscape, and 1024×768. Navigation, banner priority, six snapshots, camera filtering, playback, frame stepping, and zoom controls were checked without horizontal page overflow. Shared typography, breakpoints, carousel behavior, and zoom/pan implementation were compared with the reference project. These checks use desktop browser viewport emulation; physical iOS/Android touch gestures, mobile autoplay policies, and Safari decoding still require device verification.
-
-The banner poster and skeleton fade in independently when ready. As soon as the first video frame is decoded and its pose data is available, the video is revealed and the poster is removed in one paint, then playback starts. There is no video fade-in, poster fade-out, or delay waiting for the poster fade to finish. The poster returns if playback fails. Reduced-motion users see the static preview without fades.
-
-Banner skeleton synchronization uses presented-video-frame timestamps (`requestVideoFrameCallback`) during playback and across pauses/looping. The visible placeholder always uses frame-zero joints. The skeleton is updated in the same operation that reveals the decoded video, and pending final-frame callbacks are allowed to settle when playback pauses. Older browsers use animation-frame/current-time fallback.
+The included workflow tests, builds, and deploys `dist/` after pushes to `master` or `main`. Set **Settings → Pages → Source: GitHub Actions**. Branch-root publication does not generate the catalogs or images. Commit the source data required for deployment; local ignored caches are not uploaded.

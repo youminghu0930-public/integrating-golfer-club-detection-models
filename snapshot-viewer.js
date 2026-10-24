@@ -1,7 +1,5 @@
-import { normalizePrediction } from './prediction-data.js';
-import { readCatalog } from './catalog.js';
 import { createPoseOverlay } from './pose-overlay.js';
-import { snapshotItems, spotlightPoints } from './snapshot-data.js';
+import { spotlightPoints } from './snapshot-data.js';
 import { installLinkedView } from './linked-view.js';
 import { skeletonView } from './snapshot-framing.js';
 import { createSnapshotCallouts } from './snapshot-callouts.js';
@@ -51,34 +49,6 @@ async function paintSVG(context, source, width, height) {
   } finally { URL.revokeObjectURL(url); }
 }
 
-async function extractSnapshot(entry) {
-  const video = document.createElement('video');
-  video.muted = true; video.preload = 'auto'; video.playsInline = true;
-  const wait = event => new Promise((resolve, reject) => {
-    const timer = setTimeout(() => done(new Error('Snapshot video timed out')), 30000);
-    const done = error => {
-      clearTimeout(timer); video.removeEventListener(event, success); video.removeEventListener('error', failure);
-      error ? reject(error) : resolve();
-    };
-    const success = () => done();
-    const failure = () => done(new Error('Snapshot video could not be loaded'));
-    video.addEventListener(event, success, { once: true }); video.addEventListener('error', failure, { once: true });
-  });
-  try {
-    const loaded = wait('loadeddata'); video.src = entry.video; await loaded;
-    const start = entry.times[entry.frame];
-    const interval = (entry.times[entry.frame + 1] ?? (start + 1 / 30)) - start;
-    // Seek inside the frame, not its rounded boundary (same rule as the video viewer).
-    const time = start + Math.min(interval / 2, .01);
-    if (Math.abs(video.currentTime-time) > .000001) {
-      const sought = wait('seeked'); video.currentTime = time; await sought;
-    }
-    const canvas = document.createElement('canvas'); canvas.width = entry.width; canvas.height = entry.height;
-    canvas.getContext('2d').drawImage(video, 0, 0, entry.width, entry.height);
-    return canvas.toDataURL('image/jpeg', .9);
-  } finally { video.removeAttribute('src'); video.load(); }
-}
-
 function addShade(viewport, entry, side) {
   const shade = make('canvas', undefined, 'snapshot-shade');
   shade.setAttribute('aria-hidden', 'true');
@@ -104,23 +74,20 @@ function addShade(viewport, entry, side) {
   };
 }
 
-export async function mountSnapshots(root, copy) {
+export async function mountSnapshots(root, copy, { warmAfter = Promise.resolve(), onFirstReady } = {}) {
   const labels = copy.snapshots;
   const json = async (url, cache = 'default') => {
     const response = await fetch(url, { cache });
     if (!response.ok) throw new Error(`${url}: ${response.status}`);
     return response.json();
   };
-  const [config, manifest, credits] = await Promise.all([
-    json('materials/data/predictions/snapshot.json', 'no-cache').catch(() => ({})), readCatalog(),
+  const [manifest, credits] = await Promise.all([
+    json('materials/data/snapshot-catalog.json', 'no-cache'),
     json('materials/data/credits.json', 'no-cache').catch(() => ({})),
   ]);
-  const poses = new Map();
-  const snapshots = snapshotItems(config, manifest.clips, { onWarning: message => console.warn(message) }).map(({ clip, frame, joints, title, explanations }) => {
-    const cached = manifest.snapshots?.find(entry => entry.key === `${clip.key}-${frame}`);
-    return { ...clip, videoId: clip.id, frame, joints, title, explanations, image: cached?.image, prediction: cached?.prediction,
-      credit: credits[clip.key] ?? credits[clip.id] ?? credits[clip.id.split('-')[0]] ?? null };
-  });
+  const snapshots = manifest.snapshots.map(entry => ({ ...entry,
+    credit: credits[entry.clipKey] ?? credits[entry.videoId] ?? credits[entry.videoId.split('-')[0]] ?? null,
+  }));
   if (!snapshots.length) { root.replaceChildren(make('p', labels.empty)); return; }
   root.setAttribute('role', 'region');
   root.setAttribute('aria-label', labels.title);
@@ -211,15 +178,8 @@ export async function mountSnapshots(root, copy) {
       images.forEach(image => { image.fetchPriority = active ? 'high' : 'low'; });
       if (loading) return loading;
       loading = (async () => {
-        if (entry.image) images.forEach(image => { image.src = entry.image; });
-        // Stale catalogs/new manual selections only: load full poses for this card on demand.
-        await Promise.all(['prediction'].map(async side => {
-          if (entry[side]) return;
-          const file = entry.pose;
-          if (!poses.has(file)) poses.set(file, json(file));
-          const pose = normalizePrediction(await poses.get(file));
-          entry[side] = { joints: pose.joints, pred: [pose.pred[entry.frame]] };
-        }));
+        if (!entry.image || !entry.prediction) throw new Error('Prepared snapshot image or joints missing');
+        images.forEach(image => { image.src = `${entry.image}?v=${entry.imageVersion || ''}`; });
         focusReady = true;
         linkedView.setView(defaultFocus());
         for (const [viewIndex, side] of ['prediction'].entries()) {
@@ -230,10 +190,6 @@ export async function mountSnapshots(root, copy) {
           updateShade(viewState); shades.push(updateShade);
           const updateCallouts = createSnapshotCallouts(viewports[viewIndex], panels[viewIndex], entry, side);
           updateCallouts(viewState); callouts.push(updateCallouts);
-        }
-        if (!entry.image) {
-          const image = await extractSnapshot(entry);
-          images.forEach(node => { node.src = image; });
         }
         // Let the first snapshot paint before the lower player competes for bandwidth.
         let timeout;
@@ -286,7 +242,7 @@ export async function mountSnapshots(root, copy) {
     const index = modulo(target), entry = snapshots[index];
     loaders[index](true);
     // Give the active card first priority; warm up only its two immediate neighbors.
-    loaders[index](true).then(() => setTimeout(() => {
+    loaders[index](true).then(() => warmAfter).then(() => setTimeout(() => {
       if (modulo(target) !== index || count < 2) return;
       loaders[modulo(index-1)](false); loaders[modulo(index+1)](false);
     }, 500));
@@ -358,6 +314,8 @@ export async function mountSnapshots(root, copy) {
   const resize = new ResizeObserver(resizeLayout); resize.observe(stage); cards.forEach(card => resize.observe(card));
   updateSelection(); resizeLayout();
   await loaders[0](true);
+  resizeLayout(); onFirstReady?.();
+  await warmAfter;
   // Warm the remaining curated frames offscreen before handing bandwidth to video.
   // Sequential requests avoid a burst that competes with the selected snapshot.
   for (let index = 1; index < loaders.length; index++) await loaders[index](false);

@@ -18,20 +18,25 @@ if (args.length > 1 || !/^\d+$/.test(args[0] ?? '8002') || !Number.isInteger(por
   process.exit(1);
 }
 let dirty = true;
+if (!built) {
+  const catalog = prepareData(root); dirty = false;
+  console.log(`Prepared ${catalog.clips.length} videos, ${catalog.snapshots.length} snapshots.`);
+}
 fs.mkdirSync(path.join(root, 'materials/data'), { recursive: true });
 if (!built) fs.watch(path.join(root, 'materials/data'), { recursive: true }, (_, filename) => {
   const file = String(filename || '');
-  if (file !== 'catalog.json' && !file.startsWith('.generated')) dirty = true;
+  if (!['catalog.json','snapshot-catalog.json'].includes(file) && !file.startsWith('.generated') && !file.startsWith('snapshots/')) dirty = true;
 });
 if (!built) fs.watch(path.join(root, 'materials/content.json'), () => { dirty = true; });
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.mp4': 'video/mp4', '.jpg': 'image/jpeg', '.webp': 'image/webp' };
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.mp4': 'video/mp4', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
 http.createServer((request, response) => {
   if (!['GET', 'HEAD'].includes(request.method)) { response.writeHead(405).end(); return; }
   let filename;
   try {
     const url = new URL(request.url, 'http://localhost');
     const relative = decodeURIComponent(url.pathname);
-    if (!built && relative === '/materials/data/catalog.json' && dirty) {
+    if (!built && request.method === 'GET' && ['/', '/index.html'].includes(relative)) dirty = true;
+    if (!built && ['/materials/data/catalog.json','/materials/data/snapshot-catalog.json'].includes(relative) && dirty) {
       const catalog = prepareData(root);
       dirty = false;
       console.log(`Data refreshed: ${catalog.clips.length} videos, ${catalog.snapshots.length} snapshots.`);

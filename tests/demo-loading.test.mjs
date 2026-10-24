@@ -14,6 +14,7 @@ test('leaving the banner starts both tasks once and promotes video after snapsho
   });
   const first = start();
   assert.equal(start(),first);
+  await Promise.resolve();
   assert.deepEqual(calls,['snapshots','video']);
   assert.equal(promoted,false);
   finishSnapshots(); await first;
@@ -29,4 +30,19 @@ test('a failed snapshot preload cannot prevent video loading', async () => {
     if (demo === 'snapshots') throw new Error('Fixture snapshot failure');
   })();
   assert.deepEqual(calls,['snapshots','video']);
+});
+
+test('the Abstract snapshot starts immediately but video waits for the hero to leave', async () => {
+  let leaveHero;
+  const backgroundStart=new Promise(resolve=>{leaveHero=resolve;});
+  const calls=[];
+  const start=createDemoLoader(['snapshot','video'],async (demo,options)=>{
+    calls.push(demo);
+    if(demo==='snapshot') await options.warmAfter;
+  },backgroundStart);
+  const done=start();
+  await Promise.resolve();
+  assert.deepEqual(calls,['snapshot']);
+  leaveHero(); await done;
+  assert.deepEqual(calls,['snapshot','video']);
 });

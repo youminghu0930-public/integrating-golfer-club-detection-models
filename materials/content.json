@@ -1,9 +1,9 @@
 {
   "page": {
     "title": "Integrating Golfer and Golf Club Detection Models",
-    "description": "Unifying golfer pose and golf club detection in one keypoint model to improve blurred-club recall, accelerate inference, and simplify production maintenance.",
-    "eyebrow": "Computer vision · Golf swing analysis",
-    "role": "My role: I redesigned the data pipeline and training loss, merged partially annotated datasets, and trained a unified golfer-and-club keypoint model.",
+    "description": "Adapting a unified golfer-and-club training pipeline to incomplete annotations, improving club recall under heavy motion blur.",
+    "eyebrow": "Computer vision · Learning from incomplete annotations",
+    "role": "My role: I redesigned the data pipeline and annotation-aware training loss, integrated two annotation sources, and trained the unified keypoint model.",
     "navigationLabel": "Project sections",
     "navigationToggle": "Toggle section navigation",
     "mainPage": {
@@ -22,198 +22,205 @@
   },
   "sections": [
     {
-      "id": "goal",
-      "title": "Goal",
-      "paragraphs": [],
-      "subsections": [
-        {
-          "title": "Previous approach",
-          "paragraphs": [
-            "The legacy pipeline used separate bounding-box models to detect the golfer and golf club.",
-            "Extensive post-processing converted their detections into a single connected skeleton."
-          ]
-        },
-        {
-          "title": "Disadvantages",
-          "items": [
-            "Running two models increased inference time and created a complex pipeline that was difficult to maintain.",
-            "Recovering club orientation required choosing between the bounding box’s two diagonals using pose information, an error-prone process when the club was nearly vertical."
-          ]
-        },
-        {
-          "title": "Our goal",
-          "paragraphs": [
-            "Replace both detectors and their bounding-box-to-skeleton processing with one custom keypoint model that predicts the golfer and golf club as a unified skeleton."
-          ]
-        }
-      ]
-    },
-    {
-      "id": "difficulty",
-      "title": "Challenges",
+      "id": "abstract",
+      "title": "Abstract",
+      "snapshots": true,
       "paragraphs": [
-        "Golfer pose and club annotations came from different sources and did not consistently cover the same frames. Both were present in the videos, but time and cost constraints left some labels missing. The existing training setup treated missing labels as object absence, penalizing valid detections and conflicting with the dataset’s incomplete annotations."
+        "To replace a fragile two-model pipeline with direct golfer-and-club keypoint prediction, I needed to train on datasets with incomplete annotations. I merged the data sources and revised the loss so missing labels did not suppress valid detections. Club recall improved by approximately 50% on heavily blurred cases, supporting annotation-aware training without full relabeling."
       ],
-      "subsections": [
-        {
-          "title": "What I needed to do",
-          "items": [
-            "Redesign the data pipeline to merge the two annotation sources while tracking which golfer and club labels are available in each frame.",
-            "Adapt the training loss to distinguish missing annotations from true absence, so unlabeled targets are not incorrectly suppressed.",
-            "Establish a training and evaluation approach suited to partial supervision, verifying reliable predictions for both golfer pose and club despite incomplete labels."
-          ]
-        }
-      ]
-    },
-    {
-      "id": "accomplishment",
-      "title": "Contributions and Outcomes",
-      "paragraphs": [],
       "metricGroups": [
         {
-          "title": "Model performance",
+          "title": "Primary result",
           "metrics": [
             {
               "value": "~50%",
-              "label": "Recall improvement on heavily blurred clubs"
+              "label": "Club recall improvement on heavily blurred cases"
+            }
+          ]
+        },
+        {
+          "title": "Model integration",
+          "metrics": [
+            {
+              "value": "2 → 1",
+              "label": "Detection models in the pipeline"
             },
             {
               "value": "~2×",
               "label": "Overall inference speed"
             }
           ]
-        },
-        {
-          "title": "Engineering efficiency",
-          "metrics": [
-            {
-              "value": "2 → 1",
-              "label": "Detection models in production"
-            },
-            {
-              "value": "2–3 days",
-              "label": "Engineering time saved per model upgrade"
-            }
-          ]
         }
-      ],
-      "items": [
-        "Club detection reliability: Jointly modeling body pose and club information improved recall by approximately 50% on cases where motion blur made the club barely visible.",
-        "Inference efficiency: Retained the shared backbone architecture and replaced the detection heads with a lightweight keypoint head. The unified model ran at roughly the speed of one previous model, approximately doubling overall inference speed.",
-        "Production maintenance: Replaced separate model outputs and their alignment logic with one skeleton output, simplifying concurrent data flow and saving approximately 2–3 days of conversion, deployment, and testing work per model upgrade.",
-        "Data and training integration: Merged the two annotation sources and trained a unified golfer-and-club keypoint model with a loss function adapted to incomplete labels."
       ]
     },
     {
-      "id": "influence",
-      "title": "Lasting Impact",
-      "paragraphs": [],
+      "id": "introduction",
+      "title": "Introduction",
+      "paragraphs": [
+        "The legacy system used separate bounding-box models for golfer pose and golf club detection, then reconstructed a connected skeleton through post-processing. Recovering club orientation required choosing between bounding-box diagonals using pose estimates, which was unreliable when the club was nearly vertical.",
+        "A unified keypoint model could predict body and club geometry directly, but the available datasets did not consistently label both targets in the same frames. Missing annotations reflected gaps in labeling, not necessarily missing objects. The previous training setup treated these gaps as negative examples and suppressed valid predictions.",
+        "The research question was whether an annotation-aware data and training pipeline could combine these incomplete sources and improve club recall without requiring a fully relabeled dataset."
+      ]
+    },
+    {
+      "id": "methods",
+      "title": "Methods",
       "subsections": [
         {
-          "title": "Research insights",
+          "title": "Represent annotation availability",
           "items": [
-            "Training design: Demonstrated that a loss function and training structure tailored to incomplete annotations could support the intended prediction behavior.",
-            "Joint modeling: Observed benefits from learning body pose and club information together, particularly when pose context helped produce plausible club estimates under heavy motion blur.",
-            "Future research: Established a foundation for investigating how body–club relationships can improve predictions when visual evidence is weak."
+            "Issue: Golfer and club labels came from different sources and covered different frames. A missing label could not reliably be interpreted as object absence.",
+            "Approach: I redesigned the data pipeline to merge the sources while retaining which targets were annotated in each training sample. This preserved usable supervision without assigning negative meaning to unavailable labels."
           ]
         },
         {
-          "title": "An extensible foundation",
+          "title": "Align the loss with incomplete supervision",
           "items": [
-            "Future model integration: Adopted a skeleton output format aligned with the emerging direction of YOLO pose models and designed the training workflow to accommodate additional custom joints.",
-            "Mixed skeleton formats: Future company pose formats can coexist with existing annotations through joint mapping and missing-label handling, without standardizing every dataset.",
-            "Broader dataset reuse: Beyond our own research, the approach could enable researchers to combine existing annotations from datasets such as COCO and Human3.6M, offering a potentially low-cost path to greater training-data diversity without requiring full reannotation."
+            "Issue: The existing training structure penalized predictions for unlabeled targets, contradicting the dataset’s annotation coverage.",
+            "Approach: I revised the loss and training structure to account for annotation availability, so missing labels did not incorrectly suppress valid detections. The central change was how supervision was interpreted, rather than requiring every frame to be fully annotated."
+          ]
+        },
+        {
+          "title": "Predict body and club keypoints together",
+          "items": [
+            "Issue: Separate bounding-box outputs required orientation inference and output alignment before they could form one skeleton.",
+            "Approach: I retained the backbone architecture shared by the legacy models and replaced the detection outputs with a lightweight keypoint head. One model learned golfer pose and club geometry together, giving club estimation access to body-pose context."
           ]
         }
-      ]
+      ],
+      "note": "Proprietary loss formulations, training settings, and internal data-processing details are omitted."
     },
     {
       "id": "result",
       "title": "Results",
-      "paragraphs": [],
-      "demo": {
-        "listTitle": "Swing videos",
-        "videoTitle": "Swing video",
-        "snapshots": {
-          "title": "Difficult example snapshot highlights",
-          "inspectionHint": "Hover to inspect a joint or connection.",
-          "carousel": "carousel",
-          "loading": "Loading snapshot highlights…",
-          "empty": "No snapshots have been selected yet.",
-          "error": "Snapshot highlights could not be loaded. The video viewer is still available below.",
-          "imageError": "This snapshot image could not be loaded.",
-          "previous": "Previous snapshot",
-          "next": "Next snapshot",
-          "navigation": "Choose a snapshot",
-          "itemLabel": "Swing {video} · Frame {frame}",
-          "show": "Show swing {video}, frame {frame}",
-          "frame": "Frame {frame}",
-          "position": "{current} / {total} · Swing {video} · Frame {frame}",
-          "focus": "Focus: {joints}"
+      "paragraphs": [
+        "The unified model improved club recall by approximately 50% on heavily motion-blurred cases, where body-pose context supported estimates despite weak club visibility. It also ran at roughly the speed of one legacy model, approximately doubling overall inference speed relative to the two-model pipeline."
+      ],
+      "note": "The selected examples illustrate observed behavior. They are not a controlled benchmark, and the reported recall improvement is specific to the difficult cases assessed."
+    },
+    {
+      "id": "discussion",
+      "title": "Discussion",
+      "subsections": [
+        {
+          "title": "Supervision must reflect what is actually labeled",
+          "paragraphs": [
+            "The main contribution was making the training pipeline compatible with incomplete annotations. Treating every unlabeled target as absent introduced conflicting supervision; accounting for annotation availability allowed the two sources to contribute to one model.",
+            "Compared with the earlier two-model system, joint prediction also removed the bounding-box-to-skeleton conversion. The blurred-club examples suggest that body-pose context can help when direct club evidence is weak."
+          ]
         },
-        "creditLabel": "Video source:",
-        "creditLink": "Original Instagram post ↗",
-        "viewLabel": "Camera view",
-        "views": {
-          "all": "All views",
-          "face-on": "Face-on",
-          "down-the-line": "Down the line"
+        {
+          "title": "Implications for CI/CD and MLOps",
+          "paragraphs": [
+            "A unified keypoint output reduces the model interfaces and concurrent output-alignment logic that must be maintained and tested. The simpler conversion, deployment, and verification workflow saved approximately 2–3 days of engineering work per model upgrade.",
+            "From an MLOps perspective, annotation availability and joint definitions become explicit data contracts. Future CI/CD checks can validate those contracts and track club recall on held-out difficult examples before accepting a model update."
+          ]
         },
-        "clipLabel": "Swing {id}",
-        "videoCount": "{count} videos",
-        "frame": "Frame {current} / {total}",
-        "slider": "Video frame",
-        "start": "Jump to start",
-        "previous": "Previous frame",
-        "play": "Play",
-        "stop": "Stop",
-        "next": "Next frame",
-        "end": "Jump to end",
-        "loading": "Loading swing…",
-        "loadVideo": "Tap to load video",
-        "loadingDemo": "Loading the video demo…",
-        "loadingList": "Loading video list…",
-        "ready": "Ready",
-        "error": "This swing could not be loaded. Select a video to try again.",
-        "empty": "No videos available.",
-        "keyboard": "Press Space to play or pause. Tap ← / → to step one frame; hold to repeat.",
-        "inspectionHint": "Hover to inspect a joint or connection. Click to select; Shift-click to select multiple joints or connections.",
-        "panZoomLabel": "Pan and zoom",
-        "zoomIn": "Zoom in",
-        "zoomOut": "Zoom out",
-        "zoomLevel": "Zoom level",
-        "resetView": "Reset view",
-        "panZoomHint": "Scroll or pinch to zoom; drag to pan when zoomed in.",
-        "skeletonLabel": "{view} skeleton",
-        "featureLabel": "{view} · {feature}",
-        "connectionLabel": "{from} — {to}",
-        "jointNames": {
-          "nose": "Nose",
-          "atlas": "Atlas",
-          "top_head": "Top of head",
-          "left_eye": "Left eye",
-          "right_eye": "Right eye",
-          "left_ear": "Left ear",
-          "right_ear": "Right ear",
-          "left_shoulder": "Left shoulder",
-          "right_shoulder": "Right shoulder",
-          "left_elbow": "Left elbow",
-          "right_elbow": "Right elbow",
-          "left_wrist": "Left wrist",
-          "right_wrist": "Right wrist",
-          "left_hip": "Left hip",
-          "right_hip": "Right hip",
-          "left_knee": "Left knee",
-          "right_knee": "Right knee",
-          "left_ankle": "Left ankle",
-          "right_ankle": "Right ankle",
-          "golf_club_grip": "Club grip",
-          "golf_club_heel": "Club heel",
-          "golf_club_head": "Club head",
-          "golf_club_shaft": "Club shaft"
+        {
+          "title": "Limitations",
+          "paragraphs": [
+            "The selected snapshots and videos do not establish generalization across all golfers, camera views, or recording conditions. Interpreting the reported recall improvement requires the evaluation set, matching criteria, and baseline definition; those details are not presented here.",
+            "The examples also do not isolate the effect of the revised loss from joint body–club learning. Controlled ablations and held-out evaluation would be needed to measure their separate contributions."
+          ]
         },
-        "modelLabel": "Golfer and golf club"
-      }
+        {
+          "title": "Future directions",
+          "paragraphs": [
+            "The pipeline can accommodate future company pose formats by mapping joint definitions and tracking unavailable labels. This supports changes in skeleton format without requiring all historical annotations to be made identical.",
+            "The same principle could support reuse of existing annotations from datasets such as COCO and Human3.6M. That extension would require validating joint semantics, coordinate conventions, and domain differences; it is a potential application rather than a demonstrated result of this project."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "conclusion",
+      "title": "Conclusion",
+      "paragraphs": [
+        "Revising the data pipeline and loss made incomplete annotations usable for a unified keypoint model and improved club recall. The result supports annotation-aware supervision as a practical foundation for future dataset and skeleton changes."
+      ]
     }
-  ]
+  ],
+  "demo": {
+    "listTitle": "Swing videos",
+    "videoTitle": "Swing video",
+    "snapshots": {
+      "title": "Difficult example snapshot highlights",
+      "inspectionHint": "Hover to inspect a joint or connection.",
+      "carousel": "carousel",
+      "loading": "Loading snapshot highlights…",
+      "empty": "No snapshots have been selected yet.",
+      "error": "Snapshot highlights could not be loaded. The video viewer is still available below.",
+      "imageError": "This snapshot image could not be loaded.",
+      "previous": "Previous snapshot",
+      "next": "Next snapshot",
+      "navigation": "Choose a snapshot",
+      "itemLabel": "Swing {video} · Frame {frame}",
+      "show": "Show swing {video}, frame {frame}",
+      "frame": "Frame {frame}",
+      "position": "{current} / {total} · Swing {video} · Frame {frame}",
+      "focus": "Focus: {joints}"
+    },
+    "creditLabel": "Video source:",
+    "creditLink": "Original Instagram post ↗",
+    "viewLabel": "Camera view",
+    "views": {
+      "all": "All views",
+      "face-on": "Face-on",
+      "down-the-line": "Down the line"
+    },
+    "clipLabel": "Swing {id}",
+    "videoCount": "{count} videos",
+    "frame": "Frame {current} / {total}",
+    "slider": "Video frame",
+    "start": "Jump to start",
+    "previous": "Previous frame",
+    "play": "Play",
+    "stop": "Stop",
+    "next": "Next frame",
+    "end": "Jump to end",
+    "loading": "Loading swing…",
+    "loadVideo": "Tap to load video",
+    "loadingDemo": "Loading the video demo…",
+    "loadingList": "Loading video list…",
+    "ready": "Ready",
+    "error": "This swing could not be loaded. Select a video to try again.",
+    "empty": "No videos available.",
+    "keyboard": "Press Space to play or pause. Tap ← / → to step one frame; hold to repeat.",
+    "inspectionHint": "Hover to inspect a joint or connection. Click to select; Shift-click to select multiple joints or connections.",
+    "panZoomLabel": "Pan and zoom",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "zoomLevel": "Zoom level",
+    "resetView": "Reset view",
+    "panZoomHint": "Scroll or pinch to zoom; drag to pan when zoomed in.",
+    "skeletonLabel": "{view} skeleton",
+    "featureLabel": "{view} · {feature}",
+    "connectionLabel": "{from} — {to}",
+    "jointNames": {
+      "nose": "Nose",
+      "atlas": "Atlas",
+      "top_head": "Top of head",
+      "left_eye": "Left eye",
+      "right_eye": "Right eye",
+      "left_ear": "Left ear",
+      "right_ear": "Right ear",
+      "left_shoulder": "Left shoulder",
+      "right_shoulder": "Right shoulder",
+      "left_elbow": "Left elbow",
+      "right_elbow": "Right elbow",
+      "left_wrist": "Left wrist",
+      "right_wrist": "Right wrist",
+      "left_hip": "Left hip",
+      "right_hip": "Right hip",
+      "left_knee": "Left knee",
+      "right_knee": "Right knee",
+      "left_ankle": "Left ankle",
+      "right_ankle": "Right ankle",
+      "golf_club_grip": "Club grip",
+      "golf_club_heel": "Club heel",
+      "golf_club_head": "Club head",
+      "golf_club_shaft": "Club shaft"
+    },
+    "modelLabel": "Golfer and golf club"
+  }
 }

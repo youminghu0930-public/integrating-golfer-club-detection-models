@@ -25,6 +25,10 @@ export function prepareData(root = projectRoot, { probe = probeVideo, preview = 
   let oldCache = {};
   try { oldCache = read(cacheFile); } catch { /* Fresh checkout or invalid disposable cache. */ }
   const cache = {};
+  const snapshotCacheFile = path.join(generated, 'snapshot-sources.json');
+  let oldSnapshots = {};
+  try { oldSnapshots = read(snapshotCacheFile); } catch {}
+  const snapshotSources = {};
   const ensurePreview = (source, destination, frame) => {
     if (!fs.existsSync(destination) || fs.statSync(destination).mtimeMs < fs.statSync(source).mtimeMs) preview(source, destination, frame);
   };
@@ -58,15 +62,22 @@ export function prepareData(root = projectRoot, { probe = probeVideo, preview = 
   }
   const snapshots = [];
   const snapshotPoses = new Map();
-  const configFile = path.join(root, 'materials/data/predictions/snapshot.json');
+  const configFile = path.join(root, 'materials/data/snapshot.json');
   if (fs.existsSync(configFile)) {
     try {
-      for (const { clip, frame } of snapshotItems(read(configFile), clips, { onWarning: warn })) {
+      for (const { clip, frame, joints, title, explanations } of snapshotItems(read(configFile), clips, { onWarning: warn })) {
         const hash = cache[clip.video].hash;
-        const image = `materials/data/.generated/${clip.key}-frame-${frame}-${hash}-q${options.snapshotWebpQuality}.webp`;
+        const base = `materials/data/snapshots/${clip.view}/${clip.id}/${frame}`;
+        const extension = ['jpg','jpeg','png','webp'].find(ext => fs.existsSync(path.join(root, `${base}.${ext}`))) || 'jpg';
+        const image = `${base}.${extension}`;
         try {
-          if (!fs.existsSync(path.join(root, image))) preview(path.join(root, clip.video), path.join(root, image), frame, options.snapshotWebpQuality);
-          const snapshot = { key: `${clip.key}-${frame}`, image };
+          fs.mkdirSync(path.dirname(path.join(root, image)), { recursive: true });
+          if (oldSnapshots[image] && oldSnapshots[image] !== hash) preview(path.join(root, clip.video), path.join(root, image), frame);
+          else ensurePreview(path.join(root, clip.video), path.join(root, image), frame);
+          snapshotSources[image] = hash;
+          const imageVersion = createHash('sha256').update(fs.readFileSync(path.join(root, image))).digest('hex').slice(0,12);
+          const snapshot = { key: `${clip.key}-${frame}`, image, imageVersion, clipKey: clip.key, videoId: clip.id, view: clip.view,
+            frame, joints, title, explanations, width: clip.width, height: clip.height };
           const file = clip.pose;
           if (!snapshotPoses.has(file)) snapshotPoses.set(file, normalizePrediction(read(path.join(root, file))));
           const pose = snapshotPoses.get(file);
@@ -81,8 +92,10 @@ export function prepareData(root = projectRoot, { probe = probeVideo, preview = 
     const contentFile = path.join(root, 'materials/content.json');
     if (fs.existsSync(contentFile)) catalog.banner = prepareBanner(root, clips, read(contentFile).page?.banner);
   } catch (error) { warn(`Banner preview unavailable: ${error.message}`); }
+  fs.writeFileSync(path.join(root, 'materials/data/snapshot-catalog.json'), JSON.stringify({ snapshots }));
   fs.writeFileSync(path.join(root, 'materials/data/catalog.json'), JSON.stringify(catalog));
   fs.writeFileSync(cacheFile, JSON.stringify(cache));
+  fs.writeFileSync(snapshotCacheFile, JSON.stringify(snapshotSources));
   return catalog;
 }
 
@@ -96,7 +109,8 @@ function probeVideo(file) {
 
 function makePreview(source, destination, frame, quality = 82) {
   const filter = frame === null ? 'scale=192:192:force_original_aspect_ratio=decrease' : `select=eq(n\\,${frame})`;
-  const codec = frame === null ? ['-q:v', '5'] : ['-c:v', 'libwebp', '-quality', String(quality), '-compression_level', '6'];
+  const extension = path.extname(destination).toLowerCase();
+  const codec = frame === null ? ['-q:v', '5'] : extension === '.webp' ? ['-c:v', 'libwebp', '-quality', String(quality), '-compression_level', '6'] : extension === '.png' ? ['-c:v', 'png'] : ['-q:v', '2'];
   execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', source, '-vf', filter, '-frames:v', '1', ...codec, destination]);
 }
 

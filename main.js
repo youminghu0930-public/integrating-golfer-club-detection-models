@@ -9,7 +9,7 @@ function element(tag, text, className) {
 async function renderPage() {
   const response = await fetch('materials/content.json');
   if (!response.ok) throw new Error(`Content request failed: ${response.status}`);
-  const { page, sections } = await response.json();
+  const { page, sections, demo: demoCopy } = await response.json();
   document.title = page.title;
   document.querySelector('meta[name="description"]').content = page.description;
 
@@ -69,7 +69,6 @@ async function renderPage() {
     const banner = element('div', undefined, 'hero-banner');
     banner.setAttribute('role', 'group'); banner.setAttribute('aria-label', page.banner.label);
     hero.append(banner);
-    const demoCopy = sections.find(section=>section.demo)?.demo;
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
       import('./hero-banner.js').then(module=>module.mountBanner(banner,page.banner,demoCopy)).catch(error=>{
         console.warn('Banner unavailable',error);
@@ -88,8 +87,8 @@ async function renderPage() {
     const body = element('div', undefined, 'section-body');
     for (const paragraph of content.paragraphs || []) body.append(element('p', paragraph));
     if (content.items) {
-      const list = element('ol');
-      for (const item of content.items) list.append(element('li', item));
+      const list = element('ul', undefined, 'scan-list');
+      for (const item of content.items) list.append(scanItem(item));
       body.append(list);
     }
     for (const subsection of content.subsections || []) {
@@ -97,8 +96,8 @@ async function renderPage() {
       group.append(element('h3', subsection.title));
       for (const paragraph of subsection.paragraphs || []) group.append(element('p', paragraph));
       if (subsection.items) {
-        const list = element('ol');
-        for (const item of subsection.items) list.append(element('li', item));
+        const list = element('ul', undefined, 'scan-list');
+        for (const item of subsection.items) list.append(scanItem(item));
         group.append(list);
       }
       body.append(group);
@@ -116,46 +115,67 @@ async function renderPage() {
         }
         group.append(metrics); metricGroups.append(group);
       }
-      body.prepend(metricGroups);
+      body.append(metricGroups);
     }
+    if(content.note) body.append(element('p',content.note,'section-note'));
     section.append(heading, body);
-    if (content.demo) {
-      if (content.demo.snapshots) {
-        section.append(element('h3', content.demo.snapshots.title, 'result-subheading'));
+    if (content.snapshots || content.id==='result') {
+      const copy = demoCopy;
+      if (content.snapshots) {
+        section.append(element('h3', copy.snapshots.title, 'result-subheading'));
         const snapshots = element('div', undefined, 'snapshot-demo');
-        const loading = element('p', content.demo.snapshots.loading, 'demo-loading');
+        const loading = element('p', copy.snapshots.loading, 'demo-loading');
         loading.setAttribute('role', 'status'); snapshots.append(loading); section.append(snapshots);
-        demos.push({ demo: snapshots, copy: content.demo, modulePath: './snapshot-viewer.js', mount: 'mountSnapshots', error: content.demo.snapshots.error });
-        section.append(element('h3', content.demo.videoTitle, 'result-subheading'));
+        demos.push({ demo: snapshots, copy, modulePath: './snapshot-viewer.js', mount: 'mountSnapshots', error: copy.snapshots.error });
       }
-      const demo = element('div', undefined, 'demo');
-      const loading = element('p', content.demo.loadingDemo, 'demo-loading');
-      loading.setAttribute('role', 'status');
-      demo.append(loading);
-      section.append(demo);
-      demos.push({ demo, copy: content.demo, modulePath: './viewer.js', mount: 'mountViewer', error: content.demo.error });
+      if(content.id==='result') {
+        section.append(element('h3',copy.videoTitle,'result-subheading'));
+        const demo = element('div', undefined, 'demo');
+        const loading = element('p', copy.loadingDemo, 'demo-loading');
+        loading.setAttribute('role', 'status');
+        demo.append(loading);
+        section.append(demo);
+        demos.push({ demo, copy, modulePath: './viewer.js', mount: 'mountViewer', error: copy.error });
+      }
     }
     main.append(section);
   }
   document.querySelector('#app').replaceChildren(backdrop, navigationToggle, header, main, element('footer', page.footer));
+  const initialHash=location.hash;
+  let interacted=false;
+  for(const event of ['wheel','touchstart','pointerdown','keydown']) document.addEventListener(event,()=>{interacted=true;},{once:true,passive:true});
+  const restoreAnchor=()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    if(initialHash&&location.hash===initialHash&&!interacted) document.getElementById(initialHash.slice(1))?.scrollIntoView();
+  }));
   if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
   // Banner gets the landing-page bandwidth. Once it leaves the viewport,
   // warm snapshots and low-priority video concurrently, without waiting for Results.
   requestAnimationFrame(() => requestAnimationFrame(() => {
     import('./demo-loading.js').then(({ createDemoLoader }) => {
+      let releaseBackground;
+      const backgroundStart = new Promise(resolve => { releaseBackground=resolve; });
       const start = createDemoLoader(demos, async ({ demo, copy, modulePath, mount, error: errorText }, options) => {
-        try { const module = await import(modulePath); await module[mount](demo, copy, options); }
+        try { const module = await import(modulePath); await module[mount](demo, copy, {...options,onFirstReady:restoreAnchor}); }
         catch (error) { console.error(error); demo.replaceChildren(element('p', errorText, 'demo-loading')); }
-      });
-      if (!hero.querySelector('.hero-banner')) { start(); return; }
+      }, backgroundStart);
+      start();
+      if (!hero.querySelector('.hero-banner')) { releaseBackground(); return; }
       const observer = new IntersectionObserver(entries => {
         if (entries.some(entry => !entry.isIntersecting && entry.boundingClientRect.bottom <= 0)) {
-          observer.disconnect(); start();
+          observer.disconnect(); releaseBackground();
         }
       });
       observer.observe(hero);
     });
   }));
+}
+
+function scanItem(text) {
+  const item=element('li');
+  const split=text.indexOf(':');
+  if(split>0) item.append(element('strong',text.slice(0,split+1)),document.createTextNode(text.slice(split+1)));
+  else item.textContent=text;
+  return item;
 }
 
 renderPage().catch(error => {
