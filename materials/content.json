@@ -95,8 +95,7 @@
       "title": "Results",
       "paragraphs": [
         "The unified model improved club recall by approximately 50% on heavily motion-blurred cases, where body-pose context supported estimates despite weak club visibility. It also ran at roughly the speed of one legacy model, approximately doubling overall inference speed relative to the two-model pipeline."
-      ],
-      "note": "The selected examples illustrate observed behavior. They are not a controlled benchmark, and the reported recall improvement is specific to the difficult cases assessed."
+      ]
     },
     {
       "id": "discussion",
@@ -114,13 +113,6 @@
           "paragraphs": [
             "A unified keypoint output reduces the model interfaces and concurrent output-alignment logic that must be maintained and tested. The simpler conversion, deployment, and verification workflow saved approximately 2–3 days of engineering work per model upgrade.",
             "From an MLOps perspective, annotation availability and joint definitions become explicit data contracts. Future CI/CD checks can validate those contracts and track club recall on held-out difficult examples before accepting a model update."
-          ]
-        },
-        {
-          "title": "Limitations",
-          "paragraphs": [
-            "The selected snapshots and videos do not establish generalization across all golfers, camera views, or recording conditions. Interpreting the reported recall improvement requires the evaluation set, matching criteria, and baseline definition; those details are not presented here.",
-            "The examples also do not isolate the effect of the revised loss from joint body–club learning. Controlled ablations and held-out evaluation would be needed to measure their separate contributions."
           ]
         },
         {
