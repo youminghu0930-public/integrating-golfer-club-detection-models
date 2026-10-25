@@ -300,3 +300,21 @@ header[data-expanded=false] { width: 0; padding-inline: 0; border: 0; }
 .scan-list strong { font-weight: 600; }
 
 .metrics > div:only-child { grid-column: 1 / -1; }
+
+/* Phone controls retain usable tap targets without widening the page. */
+@media(max-width:650px) {
+  .playback-controls { gap:4px; flex-wrap:wrap; }
+  .playback-controls button { width:44px; height:44px; flex:0 0 44px; }
+  .zoom-controls { flex-wrap:wrap; }
+  .zoom-controls button { min-height:44px; }
+}
+@media(max-width:360px) {
+  .hero { padding-inline:14px; }
+  .hero h1 { font-size:28px; overflow-wrap:anywhere; }
+  .hero .eyebrow { overflow-wrap:anywhere; }
+  .demo { padding:10px; }
+  .metrics dd { font-size:22px; overflow-wrap:anywhere; }
+}
+.snapshot-demo[data-ready=false] .snapshot-image-window { opacity:0; }
+.snapshot-demo .snapshot-image-window { transition:opacity 180ms ease; }
+@media(prefers-reduced-motion:reduce) { .snapshot-demo .snapshot-image-window { transition:none; } }

@@ -155,10 +155,18 @@ async function renderPage() {
       let releaseBackground;
       const backgroundStart = new Promise(resolve => { releaseBackground=resolve; });
       const start = createDemoLoader(demos, async ({ demo, copy, modulePath, mount, error: errorText }, options) => {
-        try { const module = await import(modulePath); await module[mount](demo, copy, {...options,onFirstReady:restoreAnchor}); }
+        try { const module = await import(modulePath); await module[mount](demo, copy, {...options,onFirstReady:()=>{options.onFirstReady?.();restoreAnchor();}}); }
         catch (error) { console.error(error); demo.replaceChildren(element('p', errorText, 'demo-loading')); }
       }, backgroundStart);
       start();
+      const fallback=setTimeout(releaseBackground,1200);
+      const result=main.querySelector('#result');
+      if(result) {
+        const nearResults=new IntersectionObserver(entries=>{
+          if(entries.some(entry=>entry.isIntersecting)) {clearTimeout(fallback);releaseBackground();nearResults.disconnect();}
+        },{rootMargin:'600px'});
+        nearResults.observe(result);
+      }
       if (!hero.querySelector('.hero-banner')) { releaseBackground(); return; }
       const observer = new IntersectionObserver(entries => {
         if (entries.some(entry => !entry.isIntersecting && entry.boundingClientRect.bottom <= 0)) {

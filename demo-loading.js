@@ -1,5 +1,4 @@
-// The Abstract's first snapshot starts on landing. Remaining snapshots and video
-// metadata warm after the hero leaves; full buffering follows snapshot readiness.
+// First visible snapshot readiness is independent of offscreen preloading.
 export function createDemoLoader(demos, mount, backgroundStart = Promise.resolve()) {
   let pending;
   return () => pending ??= (async () => {
@@ -8,7 +7,9 @@ export function createDemoLoader(demos, mount, backgroundStart = Promise.resolve
       catch (error) { console.warn('Demo preload failed', error); }
     };
     if (!demos.length) return;
-    const priorityReady = run(demos[0], { warmAfter: backgroundStart });
-    await Promise.all([priorityReady, ...demos.slice(1).map(demo => backgroundStart.then(()=>run(demo, { priorityReady })))]);
+    let firstReady;
+    const priorityReady = new Promise(resolve => { firstReady = resolve; });
+    const snapshots = run(demos[0], { warmAfter: backgroundStart, onFirstReady: firstReady }).finally(firstReady);
+    await Promise.all([snapshots, ...demos.slice(1).map(demo => backgroundStart.then(()=>run(demo, { priorityReady })))]);
   })();
 }

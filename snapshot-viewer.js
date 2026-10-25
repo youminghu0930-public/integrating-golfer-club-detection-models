@@ -89,6 +89,7 @@ export async function mountSnapshots(root, copy, { warmAfter = Promise.resolve()
     credit: credits[entry.clipKey] ?? credits[entry.videoId] ?? credits[entry.videoId.split('-')[0]] ?? null,
   }));
   if (!snapshots.length) { root.replaceChildren(make('p', labels.empty)); return; }
+  root.dataset.ready='false';
   root.setAttribute('role', 'region');
   root.setAttribute('aria-label', labels.title);
   root.setAttribute('aria-roledescription', labels.carousel);
@@ -314,7 +315,7 @@ export async function mountSnapshots(root, copy, { warmAfter = Promise.resolve()
   const resize = new ResizeObserver(resizeLayout); resize.observe(stage); cards.forEach(card => resize.observe(card));
   updateSelection(); resizeLayout();
   await loaders[0](true);
-  resizeLayout(); onFirstReady?.();
+  resizeLayout(); root.dataset.ready='true'; onFirstReady?.();
   await warmAfter;
   // Warm the remaining curated frames offscreen before handing bandwidth to video.
   // Sequential requests avoid a burst that competes with the selected snapshot.

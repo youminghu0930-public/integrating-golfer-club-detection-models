@@ -46,3 +46,19 @@ test('the Abstract snapshot starts immediately but video waits for the hero to l
   leaveHero(); await done;
   assert.deepEqual(calls,['snapshot','video']);
 });
+
+test('video promotion uses first visible snapshot rather than waiting for background warming', async () => {
+  let releaseBackground;
+  const background=new Promise(resolve=>{releaseBackground=resolve;});
+  let finishWarm;
+  const warming=new Promise(resolve=>{finishWarm=resolve;});
+  let promoted=false;
+  const done=createDemoLoader(['snapshot','video'],async (demo,options)=>{
+    if(demo==='snapshot') { options.onFirstReady(); await warming; }
+    else {await options.priorityReady;promoted=true;}
+  },background)();
+  releaseBackground();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(promoted,true);
+  finishWarm();await done;
+});
